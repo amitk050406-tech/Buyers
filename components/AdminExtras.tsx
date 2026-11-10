@@ -1,0 +1,17 @@
+"use client";
+import { useEffect, useState } from "react";
+import { sb, inr } from "@/lib/supabase";
+export default function AdminExtras() {
+  const [cp, setCp] = useState<any[]>([]), [bn, setBn] = useState<any[]>([]), [msg, setMsg] = useState("");
+  const [c, setC] = useState({ code: "", discount_type: "percent", value: "", min_order_amount: "0", usage_limit: "" }), [b, setB] = useState({ title: "", subtitle: "", link: "/shop" });
+  const load = async () => { const [x, y] = await Promise.all([sb.from("coupons").select("*").order("created_at", { ascending: false }), sb.from("banners").select("*").order("sort_order")]); setCp(x.data || []); setBn(y.data || []); };
+  useEffect(() => { load(); }, []);
+  const addC = async () => { const { error } = await sb.from("coupons").insert({ code: c.code.toUpperCase(), discount_type: c.discount_type, value: +c.value, min_order_amount: +c.min_order_amount || 0, usage_limit: c.usage_limit ? +c.usage_limit : null, expires_at: new Date(Date.now() + 365 * 864e5).toISOString() }); setMsg(error?.message || "Coupon created"); load(); };
+  const addB = async () => { const { error } = await sb.from("banners").insert({ ...b, sort_order: bn.length }); setMsg(error?.message || "Banner added"); load(); };
+  return (<div className="space-y-6"><h2 className="font-bold">Coupons</h2>{msg && <p className="text-sm">{msg}</p>}
+    <div className="dg gap-2 sm:grid-cols-6"><input className="inp" placeholder="CODE" value={c.code} onChange={e => setC({ ...c, code: e.target.value })} /><select className="inp" value={c.discount_type} onChange={e => setC({ ...c, discount_type: e.target.value })}><option value="percent">% off</option><option value="flat">₹ flat</option></select><input className="inp" type="number" placeholder="Value" value={c.value} onChange={e => setC({ ...c, value: e.target.value })} /><input className="inp" type="number" placeholder="Min order" value={c.min_order_amount} onChange={e => setC({ ...c, min_order_amount: e.target.value })} /><input className="inp" type="number" placeholder="Usage limit" value={c.usage_limit} onChange={e => setC({ ...c, usage_limit: e.target.value })} /><button className="bt" onClick={addC}>Add</button></div>
+    {cp.map(x => <div key={x.id} className="flex justify-between border-b bg-white p-3 text-sm text-slate-900"><span><b>{x.code}</b> · {x.discount_type === "percent" ? `${x.value}%` : inr(x.value)} · min {inr(x.min_order_amount)} · used {x.used_count}</span><button className="font-bold text-brand" onClick={async () => { await sb.from("coupons").update({ is_active: !x.is_active }).eq("id", x.id); load(); }}>{x.is_active ? "Disable" : "Enable"}</button></div>)}
+    <h2 className="font-bold">Banners</h2>
+    <div className="dg gap-2 sm:grid-cols-4"><input className="inp" placeholder="Title" value={b.title} onChange={e => setB({ ...b, title: e.target.value })} /><input className="inp" placeholder="Subtitle" value={b.subtitle} onChange={e => setB({ ...b, subtitle: e.target.value })} /><input className="inp" placeholder="Link" value={b.link} onChange={e => setB({ ...b, link: e.target.value })} /><button className="bt" onClick={addB}>Add</button></div>
+    {bn.map(x => <div key={x.id} className="flex justify-between border-b bg-white p-3 text-sm text-slate-900"><span><b>{x.title}</b> {x.subtitle}</span><button className="font-bold text-brand" onClick={async () => { await sb.from("banners").update({ is_active: !x.is_active }).eq("id", x.id); load(); }}>{x.is_active ? "Hide" : "Show"}</button></div>)}</div>);
+}
